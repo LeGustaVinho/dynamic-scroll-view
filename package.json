@@ -1,0 +1,20 @@
+{
+  "name": "com.legustavinho.legendary-tools-dynamic-scroll-view",
+  "displayName": "Legendary Tools - Dynamic Scroll View",
+  "version": "1.0.0",
+  "unity": "2019.4",
+  "type": "library",
+  "keywords": [],
+  "category": "Extensions",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LeGustaVinho/dynamic-scroll-view.git"
+  },
+  "dependencies": {
+    "com.legustavinho.legendary-tools-pool": "https://github.com/LeGustaVinho/pool.git"
+  },
+  "author": {
+    "name": "LeGustaVinho",
+    "email": "not available"
+  }
+}

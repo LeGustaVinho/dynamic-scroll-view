@@ -1,0 +1,16 @@
+{
+    "name": "LegendaryTools.DynamicScrollView",
+    "rootNamespace": "",
+    "references": [
+        "GUID:7cfcc1a20ff91614a98283cdb05a1dbe"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
