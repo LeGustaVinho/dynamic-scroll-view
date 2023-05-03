@@ -11,7 +11,7 @@
     "url": "git+https://github.com/LeGustaVinho/dynamic-scroll-view.git"
   },
   "dependencies": {
-    "com.legustavinho.legendary-tools-pool": "https://github.com/LeGustaVinho/pool.git"
+    "com.legustavinho.legendary-tools-pool": "1.0.1"
   },
   "author": {
     "name": "LeGustaVinho",
