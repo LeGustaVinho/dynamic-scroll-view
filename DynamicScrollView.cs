@@ -14,11 +14,13 @@ namespace LegendaryTools.UI
         public interface IListingItem
         {
             void Init(TData item);
+            
+            void UpdateUI(TData item);
         }
 
         public event Action<TGameObject, TData> OnCreateItem;
         public event Action<TGameObject, TData> OnRemoveItem;
-        
+
         public event Action<List<TGameObject>> OnCompleteListingGeneration;
 
         public List<TGameObject> Listing
@@ -31,33 +33,34 @@ namespace LegendaryTools.UI
             }
         }
 
-        [SerializeField] Canvas canvas;
-        [SerializeField] ScrollRect scrollRect;
-        [SerializeField] TGameObject prefab;
-        [SerializeField] bool canOverrideItemRectTransform;
-        [SerializeField] bool debugMode;
+        public Canvas Canvas;
+        public ScrollRect ScrollRect;
+        public TGameObject Prefab;
+        public bool CanOverrideItemRectTransform;
+        public bool DebugMode;
 
-        [Header("Slots"), SerializeField]  int SlotNumInstantiateCallsPerFrame = 10;
-        [SerializeField] Vector2 ItemBufferCount;
+        [Header("Slots")] 
+        public int SlotNumInstantiateCallsPerFrame = 10;
+        public Vector2 ItemBufferCount;
 
-        RectTransform slotPrefab;
-        readonly List<RectTransform> slots = new List<RectTransform>();
-        Coroutine createSlotsRoutine;
+        private RectTransform slotPrefab;
+        private readonly List<RectTransform> slots = new List<RectTransform>();
+        private Coroutine createSlotsRoutine;
 
-        bool isInit;
-        bool isGenerating;
-        RectTransform rectTransform;
-        Coroutine generateRoutine;
-        Coroutine scrollToRoutine;
-        int pendingScrollToIndex = -1;
-        Rect viewportRect;
-        readonly Vector3[] bufferCorners = new Vector3[4];
-        Rect bufferRect;
-        RectTransform prefabRectTransform;
+        private bool isInit;
+        private bool isGenerating;
+        private RectTransform rectTransform;
+        private Coroutine generateRoutine;
+        private Coroutine scrollToRoutine;
+        private int pendingScrollToIndex = -1;
+        private Rect viewportRect;
+        private readonly Vector3[] bufferCorners = new Vector3[4];
+        private Rect bufferRect;
+        private RectTransform prefabRectTransform;
 
-        readonly Dictionary<int, TGameObject> itemsAtSlot = new Dictionary<int, TGameObject>();
-        
-        static string SLOT_PREFAB = "SlotPrefab";
+        private readonly Dictionary<int, TGameObject> itemsAtSlot = new Dictionary<int, TGameObject>();
+
+        private static readonly string SLOT_PREFAB = "SlotPrefab";
 
         public List<TData> DataSource { get; } = new List<TData>();
 
@@ -69,17 +72,18 @@ namespace LegendaryTools.UI
 
             DataSource.Clear();
             DataSource.AddRange(data);
-            
+
             if (gameObject.activeInHierarchy)
             {
                 if (generateRoutine != null)
                 {
                     StopCoroutine(generateRoutine);
                 }
+
                 generateRoutine = StartCoroutine(GenerateView(data));
             }
         }
-        
+
         public void Refresh(TData itemData)
         {
             int index = DataSource.FindIndex(item => item == itemData);
@@ -87,16 +91,24 @@ namespace LegendaryTools.UI
             {
                 if (itemsAtSlot.TryGetValue(index, out TGameObject itemAtSlot))
                 {
-                    itemAtSlot.Init(itemData);
+                    itemAtSlot.UpdateUI(itemData);
                 }
             }
         }
 
+        public void RefreshAll(TData[] data)
+        {
+            foreach (TData entry in data)
+            {
+                Refresh(entry);
+            }
+        }
+        
         public void RefreshAll()
         {
             foreach (KeyValuePair<int, TGameObject> itemAtSlot in itemsAtSlot)
             {
-                itemAtSlot.Value.Init(DataSource[itemAtSlot.Key]);
+                itemAtSlot.Value.UpdateUI(DataSource[itemAtSlot.Key]);
             }
         }
 
@@ -114,6 +126,7 @@ namespace LegendaryTools.UI
                         {
                             StopCoroutine(scrollToRoutine);
                         }
+
                         scrollToRoutine = StartCoroutine(WaitGenerateAndScrollTo(slotIndex));
                     }
                     else
@@ -127,7 +140,7 @@ namespace LegendaryTools.UI
                 }
             }
         }
-        
+
         public void ScrollToBeginning()
         {
             if (isGenerating)
@@ -138,6 +151,7 @@ namespace LegendaryTools.UI
                     {
                         StopCoroutine(scrollToRoutine);
                     }
+
                     scrollToRoutine = StartCoroutine(WaitGenerateAndScrollTo(0));
                 }
                 else
@@ -150,7 +164,7 @@ namespace LegendaryTools.UI
                 ScrollTo(0);
             }
         }
-        
+
         public void ScrollToEnd()
         {
             if (isGenerating)
@@ -161,16 +175,17 @@ namespace LegendaryTools.UI
                     {
                         StopCoroutine(scrollToRoutine);
                     }
-                    scrollToRoutine = StartCoroutine(WaitGenerateAndScrollTo(Int32.MaxValue));
+
+                    scrollToRoutine = StartCoroutine(WaitGenerateAndScrollTo(int.MaxValue));
                 }
                 else
                 {
-                    pendingScrollToIndex = Int32.MaxValue;
+                    pendingScrollToIndex = int.MaxValue;
                 }
             }
             else
             {
-                ScrollTo(slots.Count-1);
+                ScrollTo(slots.Count - 1);
             }
         }
 
@@ -180,12 +195,12 @@ namespace LegendaryTools.UI
             {
                 index = Mathf.Clamp(index, 0, slots.Count - 1);
                 RectTransform target = slots[index];
-                Vector2 viewportHalfSize = scrollRect.viewport.rect.size * 0.5f;
-                Vector2 contentSize = scrollRect.content.rect.size;
+                Vector2 viewportHalfSize = ScrollRect.viewport.rect.size * 0.5f;
+                Vector2 contentSize = ScrollRect.content.rect.size;
 
                 //get object position inside content
                 Vector3 targetRelativePosition =
-                    scrollRect.content.InverseTransformPoint(target.position);
+                    ScrollRect.content.InverseTransformPoint(target.position);
 
                 //adjust for item size
                 targetRelativePosition += new Vector3(target.rect.size.x, target.rect.size.y, 0f) * 0.25f;
@@ -208,15 +223,15 @@ namespace LegendaryTools.UI
                 normalizedPosition.x = Mathf.Clamp01(normalizedPosition.x);
                 normalizedPosition.y = Mathf.Clamp01(normalizedPosition.y);
 
-                scrollRect.normalizedPosition = normalizedPosition;
+                ScrollRect.normalizedPosition = normalizedPosition;
 
                 UpdateVisibility();
             }
         }
-        
+
         public void Dispose()
         {
-            Pool.ClearPool(prefab);
+            Pool.ClearPool(Prefab);
         }
 
         public void DestroyAllItems()
@@ -249,6 +264,7 @@ namespace LegendaryTools.UI
                 {
                     StopCoroutine(generateRoutine);
                 }
+
                 generateRoutine = StartCoroutine(GenerateView(DataSource.ToArray()));
             }
 
@@ -265,7 +281,7 @@ namespace LegendaryTools.UI
                 StopCoroutine(generateRoutine);
                 generateRoutine = null;
             }
-            
+
             if (scrollToRoutine != null)
             {
                 StopCoroutine(scrollToRoutine);
@@ -280,7 +296,7 @@ namespace LegendaryTools.UI
                 StopCoroutine(generateRoutine);
                 generateRoutine = null;
             }
-            
+
             if (scrollToRoutine != null)
             {
                 StopCoroutine(scrollToRoutine);
@@ -297,7 +313,7 @@ namespace LegendaryTools.UI
 
             DestroyAllItems();
 
-            scrollRect.onValueChanged.RemoveListener(OnScrollRectChange);
+            ScrollRect.onValueChanged.RemoveListener(OnScrollRectChange);
 
             if (slotPrefab != null)
             {
@@ -308,7 +324,7 @@ namespace LegendaryTools.UI
 
         protected virtual void Reset()
         {
-            scrollRect = GetComponent<ScrollRect>();
+            ScrollRect = GetComponent<ScrollRect>();
         }
 
         protected virtual void OnItemCreated(TGameObject item, TData data)
@@ -319,31 +335,31 @@ namespace LegendaryTools.UI
         {
         }
 
-        void Initialize()
+        public void Initialize()
         {
             if (!isInit)
             {
                 rectTransform = GetComponent<RectTransform>();
-                if (canvas == null)
+                if (Canvas == null)
                 {
-                    canvas = rectTransform.GetComponentInParent<Canvas>();
+                    Canvas = rectTransform.GetComponentInParent<Canvas>();
                 }
-                
+
                 UpdateViewportRect();
 
                 GameObject newSlotPrefabGo =
                     new GameObject(SLOT_PREFAB, typeof(RectTransform), typeof(GameObjectPoolReference));
                 slotPrefab = newSlotPrefabGo.GetComponent<RectTransform>();
 
-                prefabRectTransform = prefab.GetComponent<RectTransform>();
+                prefabRectTransform = Prefab.GetComponent<RectTransform>();
 
-                scrollRect.onValueChanged.AddListener(OnScrollRectChange);
+                ScrollRect.onValueChanged.AddListener(OnScrollRectChange);
 
                 isInit = true;
             }
         }
 
-        IEnumerator GenerateView(TData[] data)
+        private IEnumerator GenerateView(TData[] data)
         {
             if (DataSource.Count > slots.Count)
             {
@@ -354,12 +370,14 @@ namespace LegendaryTools.UI
                     for (int i = 0; i < slotsToCreate; i++)
                     {
                         RectTransform newSlot = Pool.Instantiate(slotPrefab);
-                        newSlot.SetParent(scrollRect.content);
+                        newSlot.SetParent(ScrollRect.content);
 
                         newSlot.localPosition = Vector3.zero;
                         newSlot.localScale = Vector3.one;
                         newSlot.localRotation = Quaternion.identity;
-                        newSlot.sizeDelta = prefabRectTransform.sizeDelta; //Note: Layout of the content MAY overwrite the slot size (eg. GridLayoutGroup)
+                        newSlot.sizeDelta =
+                            prefabRectTransform
+                                .sizeDelta; //Note: Layout of the content MAY overwrite the slot size (eg. GridLayoutGroup)
 
                         slots.Add(newSlot);
                     }
@@ -403,20 +421,20 @@ namespace LegendaryTools.UI
             OnCompleteListingGeneration?.Invoke(Listing);
         }
 
-        IEnumerator WaitGenerateAndScrollTo(int index)
+        private IEnumerator WaitGenerateAndScrollTo(int index)
         {
             yield return new WaitUntil(() => isGenerating == false);
             ScrollTo(index);
             pendingScrollToIndex = -1;
             scrollToRoutine = null;
         }
-        
-        void OnScrollRectChange(Vector2 scrollDelta)
+
+        private void OnScrollRectChange(Vector2 scrollDelta)
         {
             UpdateVisibility();
         }
 
-        void UpdateVisibility()
+        private void UpdateVisibility()
         {
             UpdateViewportRect();
             for (int i = 0; i < slots.Count; i++)
@@ -432,22 +450,22 @@ namespace LegendaryTools.UI
             }
         }
 
-        void CreateItemAt(int index)
+        private void CreateItemAt(int index)
         {
             if (slots.Count > index && DataSource.Count > index)
             {
                 if (!itemsAtSlot.ContainsKey(index))
                 {
-                    TGameObject newItem = Pool.Instantiate(prefab);
+                    TGameObject newItem = Pool.Instantiate(Prefab);
                     RectTransform newItemRT = newItem.GetComponent<RectTransform>();
-                    RectTransform prefabRT = prefab.GetComponent<RectTransform>();
+                    RectTransform prefabRT = Prefab.GetComponent<RectTransform>();
 
                     newItemRT.SetParent(slots[index]);
                     newItemRT.localPosition = prefabRT.localPosition;
                     newItemRT.localScale = prefabRT.localScale;
                     newItemRT.localRotation = prefabRT.localRotation;
 
-                    if (canOverrideItemRectTransform)
+                    if (CanOverrideItemRectTransform)
                     {
                         newItemRT.pivot = new Vector2(0.5f, 0.5f);
                         newItemRT.anchoredPosition = Vector3.zero;
@@ -466,7 +484,7 @@ namespace LegendaryTools.UI
             }
         }
 
-        void DestroyItemAt(int index)
+        private void DestroyItemAt(int index)
         {
             if (itemsAtSlot.TryGetValue(index, out TGameObject viewItem))
             {
@@ -478,42 +496,52 @@ namespace LegendaryTools.UI
             }
         }
 
-        void UpdateViewportRect()
+        private void UpdateViewportRect()
         {
-            (scrollRect.viewport != null ? scrollRect.viewport : rectTransform).GetWorldCorners(bufferCorners);
-            for (int j = 0; j < bufferCorners.Length; j++)
+            if(!Canvas)
+                Canvas = rectTransform.GetComponentInParent<Canvas>();
+
+            if (!Canvas)
             {
-                bufferCorners[j] = canvas.transform.InverseTransformVector(bufferCorners[j]);
+                Debug.LogWarning($"[{nameof(DynamicScrollView<TGameObject, TData>)}:UpdateViewportRect] Canvas cannot be null.");
+                return;
             }
             
+            (ScrollRect.viewport != null ? ScrollRect.viewport : rectTransform).GetWorldCorners(bufferCorners);
+            for (int j = 0; j < bufferCorners.Length; j++)
+            {
+                bufferCorners[j] = Canvas.transform.InverseTransformVector(bufferCorners[j]);
+            }
+
             Vector2 estimatedSlotSize = new Vector2(0, 0);
             if (slots.Count > 0)
             {
                 Vector3[] slotCorners = new Vector3[4];
                 slots[0].GetWorldCorners(slotCorners);
-                estimatedSlotSize.Set(Vector3.Distance(slotCorners[2], slotCorners[1]), Vector3.Distance(slotCorners[1],slotCorners[0]));
+                estimatedSlotSize.Set(Vector3.Distance(slotCorners[2], slotCorners[1]),
+                    Vector3.Distance(slotCorners[1], slotCorners[0]));
             }
 
-            viewportRect.Set(bufferCorners[1].x - (ItemBufferCount.x * estimatedSlotSize.x), 
-                bufferCorners[1].y + (ItemBufferCount.y * estimatedSlotSize.y), 
-                Vector3.Distance(bufferCorners[2], bufferCorners[1]) + (ItemBufferCount.x * estimatedSlotSize.x * 2),
-                Vector3.Distance(bufferCorners[1],bufferCorners[0]) + (ItemBufferCount.y * estimatedSlotSize.y * 2));
+            viewportRect.Set(bufferCorners[1].x - ItemBufferCount.x * estimatedSlotSize.x,
+                bufferCorners[1].y + ItemBufferCount.y * estimatedSlotSize.y,
+                Vector3.Distance(bufferCorners[2], bufferCorners[1]) + ItemBufferCount.x * estimatedSlotSize.x * 2,
+                Vector3.Distance(bufferCorners[1], bufferCorners[0]) + ItemBufferCount.y * estimatedSlotSize.y * 2);
         }
 
-        bool IsVisible(Rect parentRect, RectTransform rectTransform)
+        private bool IsVisible(Rect parentRect, RectTransform rectTransformEntry)
         {
-            if (rectTransform != null)
+            if (rectTransformEntry)
             {
-                rectTransform.GetWorldCorners(bufferCorners);
+                rectTransformEntry.GetWorldCorners(bufferCorners);
                 for (int i = 0; i < bufferCorners.Length; i++)
                 {
-                    bufferCorners[i] = canvas.transform.InverseTransformVector(bufferCorners[i]);
+                    bufferCorners[i] = Canvas.transform.InverseTransformVector(bufferCorners[i]);
                 }
 
-                float width = Mathf.Abs(Vector3.Distance(bufferCorners[2] ,bufferCorners[1]));
+                float width = Mathf.Abs(Vector3.Distance(bufferCorners[2], bufferCorners[1]));
                 float height = Mathf.Abs(Vector3.Distance(bufferCorners[1], bufferCorners[0]));
 
-                bufferRect.Set(bufferCorners[1].x, bufferCorners[1].y + - height + parentRect.height , width, height);
+                bufferRect.Set(bufferCorners[1].x, bufferCorners[1].y + -height + parentRect.height, width, height);
                 return parentRect.Overlaps(bufferRect);
             }
 
@@ -521,45 +549,46 @@ namespace LegendaryTools.UI
         }
 
 #if UNITY_EDITOR
-        void OnDrawGizmos()
+        private void OnDrawGizmos()
         {
-            if (!debugMode) return;
-            
+            if (!DebugMode) return;
+
             Gizmos.color = new Color(0.0f, 1.0f, 0.0f);
-            (scrollRect.viewport != null ? scrollRect.viewport : rectTransform).GetWorldCorners(bufferCorners);
-            
+            (ScrollRect.viewport != null ? ScrollRect.viewport : rectTransform).GetWorldCorners(bufferCorners);
+
             for (int j = 0; j < bufferCorners.Length; j++)
             {
-                bufferCorners[j] = canvas.transform.InverseTransformVector(bufferCorners[j]);
+                bufferCorners[j] = Canvas.transform.InverseTransformVector(bufferCorners[j]);
             }
 
             float viewportHeight = Vector3.Distance(bufferCorners[1], bufferCorners[0]);
-            
-            DrawRect(new Rect(bufferCorners[1].x, 
-                bufferCorners[1].y, 
+
+            DrawRect(new Rect(bufferCorners[1].x,
+                bufferCorners[1].y,
                 Vector3.Distance(bufferCorners[2], bufferCorners[1]),
                 viewportHeight));
 
-             Gizmos.color = new Color(0.0f, 0.0f, 1.0f);
-             for (int i = 0; i < slots.Count; i++)
-             {
-                 slots[i].GetWorldCorners(bufferCorners);
-                 for (int j = 0; j < bufferCorners.Length; j++)
-                 {
-                     bufferCorners[j] = canvas.transform.InverseTransformVector(bufferCorners[j]);
-                 }
-                 
-                 float width = Mathf.Abs(Vector3.Distance(bufferCorners[2] ,bufferCorners[1]));
-                 float height = Mathf.Abs(Vector3.Distance(bufferCorners[1], bufferCorners[0]));
-            
-                 bufferRect.Set(bufferCorners[1].x, bufferCorners[1].y - height + viewportHeight, width, height);
-                 DrawRect(bufferRect);
-             }
+            Gizmos.color = new Color(0.0f, 0.0f, 1.0f);
+            for (int i = 0; i < slots.Count; i++)
+            {
+                slots[i].GetWorldCorners(bufferCorners);
+                for (int j = 0; j < bufferCorners.Length; j++)
+                {
+                    bufferCorners[j] = Canvas.transform.InverseTransformVector(bufferCorners[j]);
+                }
+
+                float width = Mathf.Abs(Vector3.Distance(bufferCorners[2], bufferCorners[1]));
+                float height = Mathf.Abs(Vector3.Distance(bufferCorners[1], bufferCorners[0]));
+
+                bufferRect.Set(bufferCorners[1].x, bufferCorners[1].y - height + viewportHeight, width, height);
+                DrawRect(bufferRect);
+            }
         }
-        
-        void DrawRect(Rect rect)
+
+        private void DrawRect(Rect rect)
         {
-            Gizmos.DrawWireCube(new Vector3(rect.center.x, rect.center.y, 0.01f), new Vector3(rect.size.x, rect.size.y, 0.01f));
+            Gizmos.DrawWireCube(new Vector3(rect.center.x, rect.center.y, 0.01f),
+                new Vector3(rect.size.x, rect.size.y, 0.01f));
             // Gizmos.DrawLine(new Vector3(rect.x, rect.y, 0), new Vector3(rect.xMax, rect.y));
             // Gizmos.DrawLine(new Vector3(rect.x, rect.y, 0), new Vector3(rect.x, rect.yMax));
             // Gizmos.DrawLine(new Vector3(rect.xMax, rect.y, 0), new Vector3(rect.xMax, rect.yMax));
