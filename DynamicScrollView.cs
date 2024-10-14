@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
 
 namespace LegendaryTools.UI
@@ -33,7 +34,7 @@ namespace LegendaryTools.UI
             }
         }
 
-        public Canvas Canvas;
+        public Canvas MainCanvas;
         public ScrollRect ScrollRect;
         public TGameObject Prefab;
         public bool CanOverrideItemRectTransform;
@@ -340,9 +341,9 @@ namespace LegendaryTools.UI
             if (!isInit)
             {
                 rectTransform = GetComponent<RectTransform>();
-                if (Canvas == null)
+                if (MainCanvas == null)
                 {
-                    Canvas = rectTransform.GetComponentInParent<Canvas>();
+                    MainCanvas = rectTransform.GetComponentInParent<Canvas>();
                 }
 
                 UpdateViewportRect();
@@ -498,19 +499,19 @@ namespace LegendaryTools.UI
 
         private void UpdateViewportRect()
         {
-            if(!Canvas)
-                Canvas = rectTransform.GetComponentInParent<Canvas>();
+            if(!MainCanvas)
+                MainCanvas = rectTransform.GetComponentInParent<Canvas>();
 
-            if (!Canvas)
+            if (!MainCanvas)
             {
-                Debug.LogWarning($"[{nameof(DynamicScrollView<TGameObject, TData>)}:UpdateViewportRect] Canvas cannot be null.");
+                Debug.LogWarning($"[{nameof(DynamicScrollView<TGameObject, TData>)}:{nameof(UpdateViewportRect)}] Canvas cannot be null.");
                 return;
             }
             
             (ScrollRect.viewport != null ? ScrollRect.viewport : rectTransform).GetWorldCorners(bufferCorners);
             for (int j = 0; j < bufferCorners.Length; j++)
             {
-                bufferCorners[j] = Canvas.transform.InverseTransformVector(bufferCorners[j]);
+                bufferCorners[j] = MainCanvas.transform.InverseTransformVector(bufferCorners[j]);
             }
 
             Vector2 estimatedSlotSize = new Vector2(0, 0);
@@ -535,7 +536,7 @@ namespace LegendaryTools.UI
                 rectTransformEntry.GetWorldCorners(bufferCorners);
                 for (int i = 0; i < bufferCorners.Length; i++)
                 {
-                    bufferCorners[i] = Canvas.transform.InverseTransformVector(bufferCorners[i]);
+                    bufferCorners[i] = MainCanvas.transform.InverseTransformVector(bufferCorners[i]);
                 }
 
                 float width = Mathf.Abs(Vector3.Distance(bufferCorners[2], bufferCorners[1]));
@@ -558,7 +559,7 @@ namespace LegendaryTools.UI
 
             for (int j = 0; j < bufferCorners.Length; j++)
             {
-                bufferCorners[j] = Canvas.transform.InverseTransformVector(bufferCorners[j]);
+                bufferCorners[j] = MainCanvas.transform.InverseTransformVector(bufferCorners[j]);
             }
 
             float viewportHeight = Vector3.Distance(bufferCorners[1], bufferCorners[0]);
@@ -574,7 +575,7 @@ namespace LegendaryTools.UI
                 slots[i].GetWorldCorners(bufferCorners);
                 for (int j = 0; j < bufferCorners.Length; j++)
                 {
-                    bufferCorners[j] = Canvas.transform.InverseTransformVector(bufferCorners[j]);
+                    bufferCorners[j] = MainCanvas.transform.InverseTransformVector(bufferCorners[j]);
                 }
 
                 float width = Mathf.Abs(Vector3.Distance(bufferCorners[2], bufferCorners[1]));
