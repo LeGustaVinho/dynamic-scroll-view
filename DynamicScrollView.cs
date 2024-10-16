@@ -247,11 +247,6 @@ namespace LegendaryTools.UI
             itemsAtSlot.Clear();
         }
 
-        protected void Awake()
-        {
-            Initialize();
-        }
-
         protected virtual void Start()
         {
             Initialize();
