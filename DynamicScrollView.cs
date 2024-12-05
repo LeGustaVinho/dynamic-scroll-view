@@ -65,6 +65,33 @@ namespace LegendaryTools.UI
 
         public List<TData> DataSource { get; } = new List<TData>();
 
+        public void Initialize()
+        {
+            if (!isInit)
+            {
+                rectTransform = GetComponent<RectTransform>();
+                if (MainCanvas == null)
+                {
+                    MainCanvas = rectTransform.GetComponentInParent<Canvas>();
+                }
+
+                if (!MainCanvas)
+                {
+                    Debug.LogWarning($"[{nameof(DynamicScrollView<TGameObject, TData>)}:{nameof(UpdateViewportRect)}] Canvas cannot be null.");
+                    return;
+                }
+
+                UpdateViewportRect();
+                GameObject newSlotPrefabGo =
+                    new GameObject(SLOT_PREFAB, typeof(RectTransform), typeof(GameObjectPoolReference));
+                
+                slotPrefab = newSlotPrefabGo.GetComponent<RectTransform>();
+                prefabRectTransform = Prefab.GetComponent<RectTransform>();
+                ScrollRect.onValueChanged.AddListener(OnScrollRectChange);
+                isInit = true;
+            }
+        }
+        
         public void Generate(TData[] data)
         {
             isGenerating = true;
@@ -85,8 +112,14 @@ namespace LegendaryTools.UI
             }
         }
 
+        public IEnumerator GenerationAwaitable()
+        {
+            yield return generateRoutine;
+        }
+
         public void Refresh(TData itemData)
         {
+            if (!isInit) return;
             int index = DataSource.FindIndex(item => item == itemData);
             if (index >= 0)
             {
@@ -99,6 +132,7 @@ namespace LegendaryTools.UI
 
         public void RefreshAll(TData[] data)
         {
+            if (!isInit) return;
             foreach (TData entry in data)
             {
                 Refresh(entry);
@@ -107,6 +141,7 @@ namespace LegendaryTools.UI
         
         public void RefreshAll()
         {
+            if (!isInit) return;
             foreach (KeyValuePair<int, TGameObject> itemAtSlot in itemsAtSlot)
             {
                 itemAtSlot.Value.UpdateUI(DataSource[itemAtSlot.Key]);
@@ -115,6 +150,7 @@ namespace LegendaryTools.UI
 
         public void ScrollTo(TData itemToFocus)
         {
+            if (!isInit) return;
             int slotIndex = DataSource.FindIndex(item => item == itemToFocus);
 
             if (slotIndex >= 0)
@@ -144,6 +180,7 @@ namespace LegendaryTools.UI
 
         public void ScrollToBeginning()
         {
+            if (!isInit) return;
             if (isGenerating)
             {
                 if (gameObject.activeInHierarchy)
@@ -168,6 +205,7 @@ namespace LegendaryTools.UI
 
         public void ScrollToEnd()
         {
+            if (!isInit) return;
             if (isGenerating)
             {
                 if (gameObject.activeInHierarchy)
@@ -192,6 +230,7 @@ namespace LegendaryTools.UI
 
         private void ScrollTo(int index)
         {
+            if (!isInit) return;
             if (slots.Count > 0)
             {
                 index = Mathf.Clamp(index, 0, slots.Count - 1);
@@ -237,6 +276,7 @@ namespace LegendaryTools.UI
 
         public void DestroyAllItems()
         {
+            if (!isInit) return;
             foreach (KeyValuePair<int, TGameObject> itemInSlot in itemsAtSlot)
             {
                 OnItemRemoved(itemInSlot.Value, DataSource[itemInSlot.Key]);
@@ -254,6 +294,8 @@ namespace LegendaryTools.UI
 
         protected virtual void OnEnable()
         {
+            if (!isInit) return;
+            
             if (slots.Count != DataSource.Count)
             {
                 if (generateRoutine != null)
@@ -331,32 +373,10 @@ namespace LegendaryTools.UI
         {
         }
 
-        public void Initialize()
-        {
-            if (!isInit)
-            {
-                rectTransform = GetComponent<RectTransform>();
-                if (MainCanvas == null)
-                {
-                    MainCanvas = rectTransform.GetComponentInParent<Canvas>();
-                }
-
-                UpdateViewportRect();
-
-                GameObject newSlotPrefabGo =
-                    new GameObject(SLOT_PREFAB, typeof(RectTransform), typeof(GameObjectPoolReference));
-                slotPrefab = newSlotPrefabGo.GetComponent<RectTransform>();
-
-                prefabRectTransform = Prefab.GetComponent<RectTransform>();
-
-                ScrollRect.onValueChanged.AddListener(OnScrollRectChange);
-
-                isInit = true;
-            }
-        }
-
         private IEnumerator GenerateView(TData[] data)
         {
+            if (!isInit) yield break;
+            
             if (DataSource.Count > slots.Count)
             {
                 int slotsToCreate = Mathf.Clamp(DataSource.Count - slots.Count, 0, SlotNumInstantiateCallsPerFrame);
@@ -448,6 +468,8 @@ namespace LegendaryTools.UI
 
         private void CreateItemAt(int index)
         {
+            if (Prefab == null) return;
+            
             if (slots.Count > index && DataSource.Count > index)
             {
                 if (!itemsAtSlot.ContainsKey(index))
@@ -482,9 +504,8 @@ namespace LegendaryTools.UI
 
         private void DestroyItemAt(int index)
         {
-            if (itemsAtSlot.TryGetValue(index, out TGameObject viewItem))
+            if (itemsAtSlot.Remove(index, out TGameObject viewItem))
             {
-                itemsAtSlot.Remove(index);
                 OnItemRemoved(viewItem, DataSource[index]);
                 OnRemoveItem?.Invoke(viewItem, DataSource[index]);
 
@@ -494,15 +515,6 @@ namespace LegendaryTools.UI
 
         private void UpdateViewportRect()
         {
-            if(!MainCanvas)
-                MainCanvas = rectTransform.GetComponentInParent<Canvas>();
-
-            if (!MainCanvas)
-            {
-                Debug.LogWarning($"[{nameof(DynamicScrollView<TGameObject, TData>)}:{nameof(UpdateViewportRect)}] Canvas cannot be null.");
-                return;
-            }
-            
             (ScrollRect.viewport != null ? ScrollRect.viewport : rectTransform).GetWorldCorners(bufferCorners);
             for (int j = 0; j < bufferCorners.Length; j++)
             {
