@@ -124,6 +124,9 @@ namespace LegendaryTools.UI
         private readonly Vector3[] bufferCorners = new Vector3[4];
         private Rect bufferRect;
         private Rect viewportRect;
+        // Instead of storing a Rect for the viewport,
+        // we'll store a Bounds (3D) in the ScrollRect.content space.
+        private Bounds extendedViewportBounds;
 
         #endregion
 
@@ -634,18 +637,19 @@ namespace LegendaryTools.UI
         }
 
         /// <summary>
-        /// Determines which slots are within the extended viewport region and shows/hides items accordingly.
+        /// Called to update item visibility after scrolling or slot creation.
         /// </summary>
         private void UpdateVisibility()
         {
-            if (!ScrollRect) return;
+            if (!ScrollRect || !ScrollRect.content) return;
 
-            UpdateViewportRect();
+            // 1) Recompute the (expanded) viewport bounds in content-space.
+            UpdateViewportBoundsWithBuffer();
 
-            // Iterate through slots; create or destroy items based on visibility
+            // 2) For each slot, check if it intersects those bounds
             for (int i = 0; i < slots.Count; i++)
             {
-                if (IsVisibleInExtendedViewport(slots[i]))
+                if (IsVisibleInExtendedViewport(slots[i], i))
                 {
                     CreateItemAt(i);
                 }
@@ -654,6 +658,41 @@ namespace LegendaryTools.UI
                     DestroyItemAt(i);
                 }
             }
+        }
+        
+        /// <summary>
+        /// Computes the viewport's bounding box in content-space, then
+        /// expands it by <see cref="ItemBufferCount"/> * slot size.
+        /// </summary>
+        private void UpdateViewportBoundsWithBuffer()
+        {
+            // A "Bounds" that covers the viewport in the coordinate system of the ScrollRect.content.
+            // This accounts for potential movement of the content transform.
+            Bounds viewportBounds = RectTransformUtility.CalculateRelativeRectTransformBounds(
+                ScrollRect.content,
+                ScrollRect.viewport
+            );
+
+            // Expand the bounds by the buffer. We use the size of the first slot
+            // (or a default guess if no slots exist) as a reference for how big "1 buffer unit" is.
+            var extents = viewportBounds.extents; // half-size
+
+            if (slots.Count > 0)
+            {
+                // Estimate slot size from the first slot
+                Bounds slotBounds = RectTransformUtility.CalculateRelativeRectTransformBounds(
+                    ScrollRect.content,
+                    slots[0]
+                );
+                Vector3 slotSize = slotBounds.size;
+
+                // Expand extents by buffer factor
+                extents.x += slotSize.x * ItemBufferCount.x;
+                extents.y += slotSize.y * ItemBufferCount.y;
+            }
+
+            viewportBounds.extents = extents;
+            extendedViewportBounds = viewportBounds;
         }
 
         /// <summary>
@@ -765,25 +804,20 @@ namespace LegendaryTools.UI
         }
 
         /// <summary>
-        /// Checks if the given slot is within the extended viewport rect (in canvas space).
+        /// Checks if the given slot is within the expanded viewport bounds.
         /// </summary>
-        private bool IsVisibleInExtendedViewport(RectTransform slotRectTransform)
+        private bool IsVisibleInExtendedViewport(RectTransform slotRect, int slotIndex)
         {
-            if (!slotRectTransform || !MainCanvas) return false;
+            if (!slotRect) return false;
 
-            slotRectTransform.GetWorldCorners(bufferCorners);
-            for (int i = 0; i < 4; i++)
-            {
-                bufferCorners[i] = MainCanvas.transform.InverseTransformPoint(bufferCorners[i]);
-            }
+            // Calculate the bounding box of the slot (including its children) in the same (content) space.
+            Bounds slotBounds = RectTransformUtility.CalculateRelativeRectTransformBounds(
+                ScrollRect.content,
+                slotRect
+            );
 
-            float minX = Mathf.Min(bufferCorners[0].x, bufferCorners[1].x, bufferCorners[2].x, bufferCorners[3].x);
-            float maxX = Mathf.Max(bufferCorners[0].x, bufferCorners[1].x, bufferCorners[2].x, bufferCorners[3].x);
-            float minY = Mathf.Min(bufferCorners[0].y, bufferCorners[1].y, bufferCorners[2].y, bufferCorners[3].y);
-            float maxY = Mathf.Max(bufferCorners[0].y, bufferCorners[1].y, bufferCorners[2].y, bufferCorners[3].y);
-
-            bufferRect.Set(minX, minY, maxX - minX, maxY - minY);
-            return viewportRect.Overlaps(bufferRect);
+            // Use 3D bounds intersection (z will usually be 0 for UI), which effectively becomes a 2D overlap.
+            return extendedViewportBounds.Intersects(slotBounds);
         }
 
         #endregion
